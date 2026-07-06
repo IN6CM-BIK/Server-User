@@ -1,0 +1,34 @@
+import mongoose from 'mongoose';
+import crypto from 'crypto';
+
+const accountSchema = new mongoose.Schema({
+    publicId: { type: String, unique: true, default: () => crypto.randomUUID() },
+    numeroCuenta: { type: String, required: true, unique: true },
+    usuarioId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    tipo: { type: String, enum: ['Monetaria', 'Ahorro'], required: true },
+    moneda: { type: String, enum: ['GTQ', 'USD'], default: 'GTQ' },
+    saldo: { type: Number, default: 0, min: 0 },
+    limiteTransferenciaDiario: { type: Number, default: 5000 },
+    isFavorite: { type: Boolean, default: false },
+    alias: { type: String, maxlength: 50, default: '' },
+    estado: { 
+        type: String, 
+        enum: ['Activa', 'Bloqueada', 'Cancelada', 'Congelada'], 
+        default: 'Activa' 
+    }
+}, {
+    timestamps: true
+});
+
+accountSchema.statics.findByAnyId = function(id) {
+    if (!id) return null;
+    const query = { $or: [{ publicId: id }] };
+    if (mongoose.Types.ObjectId.isValid(id)) {
+        query.$or.push({ _id: id });
+    }
+    return this.findOne(query);
+};
+// DB-038: Índice para consultas frecuentes por usuario
+accountSchema.index({ usuarioId: 1, estado: 1 });
+
+export default mongoose.model('Account', accountSchema);
